@@ -57,12 +57,12 @@ class WallFollowerHusky:
         # as mentioned in the PID slides.
         # current_error = min(filter(lambda x: not isnan(x), msg.ranges)) - self.desired_distance_from_wall
         
- 	for i in range(len(msg.ranges)/2):
-       		if msg.ranges[i] < distance_from_wall:
-       			distance_from_wall = msg.ranges[i]
-	#Calculating the cross track error
-       	cross_track_error = self.desired_distance_from_wall - distance_from_wall
-	self.cte_pub.publish(current_error)
+        for i in range(len(msg.ranges)/2):
+                if msg.ranges[i] < distance_from_wall:
+                    distance_from_wall = msg.ranges[i]
+        #Calculating the cross track error
+        cross_track_error = self.desired_distance_from_wall - distance_from_wall
+        self.cte_pub.publish(current_error)
 
         # You can populate the command based on either of the following two methods:
         # (1) using only the distance to the closest wall
