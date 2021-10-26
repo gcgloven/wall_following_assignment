@@ -1,9 +1,13 @@
 #!/usr/bin/env python
+
 import rospy
-from std_msgs.msg import String, Header, Float32
-from geometry_msgs.msg import Twist
+import tf
+from std_msgs.msg import String, Header
 from sensor_msgs.msg import LaserScan
-from math import isnan
+from geometry_msgs.msg import Twist
+from math import sqrt, cos, sin, pi, atan2
+import numpy
+import sys
 
 
 class PID:
@@ -18,78 +22,87 @@ class PID:
         self.curr_error_deriv = 0
         self.control = 0
         self.dt = dt
-
+        
     def update_control(self, current_error, reset_prev=False):
+        
         self.prev_error = self.curr_error
         self.curr_error = current_error
-        self.prev_error_deriv = self.curr_error_deriv
-        self.curr_error_deriv = (self.curr_error - self.prev_error) / self.dt
-        self.sum_error = self.sum_error + self.curr_error
+        
+        #Calculating the integral error
+        self.sum_error = self.sum_error + self.curr_error*self.dt
 
-        self.control = self.Kp  
-        self.curr_error + self.Td  
-        self.curr_error_deriv + self.Ti * self.sum_error
+        #Calculating the derivative error
+        self.curr_error_deriv = (self.curr_error - self.prev_error) / self.dt
+
+        #Calculating the PID Control
+        self.control = self.Kp * self.curr_error + self.Ti * self.sum_error + self.Td * self.curr_error_deriv
+
 
     def get_control(self):
         return self.control
-
-
+        
 class WallFollowerHusky:
     def __init__(self):
         rospy.init_node('wall_follower_husky', anonymous=True)
 
         self.forward_speed = rospy.get_param("~forward_speed")
         self.desired_distance_from_wall = rospy.get_param("~desired_distance_from_wall")
-        self.hz = 50
+        self.hz = 50 
 
-        # using geometry_msgs.Twist messages
-        self.cmd_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
+        #Setting the PID
+        self.controller=PID(-1,-1.2, 0.00001,0.02)
 
-        # this will set up a callback function that gets executed
-        # upon each spinOnce() call, as long as a laser scan
-        # message has been published in the meantime by another node
+        #Creating a cte_pub Publisher that will publish the cross track error
+        self.cte_pub = rospy.Publisher("/husky_1/cte", String, queue_size=50)
+
+        #Creating cmd_pub Publisher that will publish a Twist msg to cmd_vel
+        self.cmd_pub = rospy.Publisher("/cmd_vel", Twist, queue_size=50)
+        
+        self.msg = Twist()
+        self.msg.linear.x = self.forward_speed
+
+        #Publish the msg
+        self.cmd_pub.publish(self, self.msg)
+        
+        #Creating a Subscriber that will call laser_scan_callback every Laser Scan
         self.laser_sub = rospy.Subscriber("/scan", LaserScan, self.laser_scan_callback)
-        self.cte_pub = rospy.Publisher('/husky_1/cte', Float32, queue_size=1)
-
-        self.pid_controller = PID(0.16, 0.61, 0., 1. / self.hz)
+        
         
     def laser_scan_callback(self, msg):
-        # Populate this command based on the distance to the closest
-        # object in laser scan. I.e. compute the cross-track error
-        # as mentioned in the PID slides.
-        # current_error = min(filter(lambda x: not isnan(x), msg.ranges)) - self.desired_distance_from_wall
+   
         cross_track_error=0
         distance_from_wall=999999
-        for i in range(len(msg.ranges)/2):
-                if msg.ranges[i] < distance_from_wall:
-                    distance_from_wall = msg.ranges[i]
-        #Calculating the cross track error
-        cross_track_error = self.desired_distance_from_wall - distance_from_wall
-        self.cte_pub.publish(current_error)
 
-        # You can populate the command based on either of the following two methods:
-        # (1) using only the distance to the closest wall
-        # (2) using the distance to the closest wall and the orientation of the wall
-        #
-        # If you select option 2, you might want to use cascading PID control.
-        self.pid_controller.update_control(current_error)
-        twist = Twist()
-        twist.linear.x = twist.linear.y = twist.linear.z = self.forward_speed
-        twist.angular.z = self.pid_controller.get_control()
-        self.cmd_pub.publish(twist)
+        #Finding the closest distance from the wall the robot reaches
+        #Divided by 2 so it goes to the left wall and not the one on the right
+       	for i in range(len(msg.ranges)/2):
+       		if msg.ranges[i] < distance_from_wall:
+       			distance_from_wall = msg.ranges[i]
 
-    def configure_callback(self, config, level):
-        self.pid_controller.Kp = config['Kp']
-        self.pid_controller.Td = config['Td']
-        self.pid_controller.Ti = config['Ti']
-        return config
+       	#Calculating the cross track error
+       	cross_track_error = self.desired_distance_from_wall - distance_from_wall
+        
+       	#Updating the controller and publishing the cross track error
+       	self.controller.update_control(cross_track_error)
+       	self.cte_pub.publish(str(cross_track_error))
 
+       	cmd = Twist()
+        cmd.linear.x = self.forward_speed
+
+  		#Getting the new cmd.angular.z
+       	cmd.angular.z = self.controller.get_control()
+       	
+       	#Publishing the cmd.linear.x
+       	self.cmd_pub.publish(cmd)
+   
+            
     def run(self):
         rate = rospy.Rate(self.hz)
         while not rospy.is_shutdown():
             rate.sleep()
 
-
+    
+    
 if __name__ == '__main__':
     wfh = WallFollowerHusky()
     wfh.run()
