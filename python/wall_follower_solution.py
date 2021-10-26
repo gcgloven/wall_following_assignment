@@ -26,7 +26,9 @@ class PID:
         self.curr_error_deriv = (self.curr_error - self.prev_error) / self.dt
         self.sum_error = self.sum_error + self.curr_error
 
-        self.control = self.Kp  self.curr_error + self.Td  self.curr_error_deriv + self.Ti * self.sum_error
+        self.control = self.Kp  
+        self.curr_error + self.Td  
+        self.curr_error_deriv + self.Ti * self.sum_error
 
     def get_control(self):
         return self.control
