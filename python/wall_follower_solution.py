@@ -50,7 +50,7 @@ class WallFollowerHusky:
         self.hz = 50 
 
         #Setting the PID
-        self.pid_controller = PID(0.1, 0.1, 0.2, 1. / self.hz)
+        self.pid_controller = PID(0.01, 0.01, 0.05, 1. / self.hz)
 
         #Creating a cte_pub Publisher that will publish the cross track error
         self.cte_pub = rospy.Publisher("/husky_1/cte", String, queue_size=1)
