@@ -89,6 +89,6 @@ class WallFollowerHusky:
             rate.sleep()
 
 
-if _name_ == '__main__':
+if __name__ == '__main__':
     wfh = WallFollowerHusky()
     wfh.run()
