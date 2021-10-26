@@ -83,14 +83,14 @@ class WallFollowerHusky:
        	cross_track_error = self.desired_distance_from_wall - distance_from_wall
         
        	#Updating the controller and publishing the cross track error
-       	self.controller.update_control(cross_track_error)
+       	self.pid_controller.update_control(cross_track_error)
        	self.cte_pub.publish(str(cross_track_error))
 
        	cmd = Twist()
         cmd.linear.x = self.forward_speed
 
   		#Getting the new cmd.angular.z
-       	cmd.angular.z = self.controller.get_control()
+       	cmd.angular.z = self.pid_controller.get_control()
        	
        	#Publishing the cmd.linear.x
        	self.cmd_pub.publish(cmd)
