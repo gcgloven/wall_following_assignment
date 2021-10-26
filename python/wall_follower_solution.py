@@ -58,7 +58,8 @@ class WallFollowerHusky:
         # object in laser scan. I.e. compute the cross-track error
         # as mentioned in the PID slides.
         # current_error = min(filter(lambda x: not isnan(x), msg.ranges)) - self.desired_distance_from_wall
-        
+        cross_track_error=0
+        distance_from_wall=999999
         for i in range(len(msg.ranges)/2):
                 if msg.ranges[i] < distance_from_wall:
                     distance_from_wall = msg.ranges[i]
